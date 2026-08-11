@@ -12,3 +12,7 @@ data/
 # Pliki Claude Code, które nie powinny trafiać do repo zespołowego
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Tymczasowe testy/eksperymenty poza właściwym kodem (np. scratchpad/FbConnTest,
+# ręczne przebiegi export-scripts) — świadomie poza repo, patrz .claude/rules
+scratchpad/
