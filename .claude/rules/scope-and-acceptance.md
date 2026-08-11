@@ -38,7 +38,8 @@ w README jako ograniczenie.
 
 ## Do zweryfikowania (fakt, nie decyzja)
 
-`RDB$PROCEDURE_SOURCE` — zweryfikowane 2026-08-11 testem przez driver, patrz `firebird.md`.
-
-`RDB$PROCEDURE_PARAMETERS` (typ/pozycja/IN-OUT) — nadal do zrobienia, przed pisaniem
-ekstrakcji parametrów w `ExportScripts`; zapytanie weryfikacyjne w `firebird.md`.
+`RDB$PROCEDURE_SOURCE` i `RDB$PROCEDURE_PARAMETERS` (typ/pozycja/IN-OUT/default) —
+zweryfikowane 2026-08-11 testem przez driver, patrz `firebird.md`. Kluczowy wniosek do
+pamiętania przy pisaniu `ExportScripts`: `RDB$FIELD_SOURCE` w `RDB$PROCEDURE_PARAMETERS`
+zawsze wskazuje na (ew. systemową) domenę — typ parametru wymaga joina do `RDB$FIELDS`,
+nie da się go odczytać wprost z `RDB$PROCEDURE_PARAMETERS`.
