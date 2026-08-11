@@ -1,0 +1,40 @@
+# Runda 2 — zmiany po backupie (scenariusz pkt 3)
+
+*Zmiany inspirowane ROADMAP.md Kitchen.Api.*
+
+```sql
+-- 3c: nowa kolumna ("Oznaczanie otwartych produktów")
+ALTER TABLE STOCK_ITEMS ADD OPENED_DATE DATE;
+
+SET TERM ^ ;
+
+-- 3b: zmodyfikowana procedura, +parametr
+-- ("Powiadamianie o kończących się i otwartych produktach w jednym miejscu")
+CREATE OR ALTER PROCEDURE GET_EXPIRING_STOCK_ITEMS (
+  DAYS INTEGER,
+  INCLUDE_OPENED SMALLINT = 0
+)
+RETURNS (ID INTEGER, NAME VARCHAR(100), EXPIRATION_DATE DATE)
+AS
+BEGIN
+  FOR SELECT ID, NAME, EXPIRATION_DATE FROM STOCK_ITEMS
+      WHERE (EXPIRATION_DATE IS NOT NULL AND EXPIRATION_DATE <= CURRENT_DATE + :DAYS)
+         OR (:INCLUDE_OPENED = 1 AND OPENED_DATE IS NOT NULL)
+      INTO :ID, :NAME, :EXPIRATION_DATE
+  DO SUSPEND;
+END^
+
+-- 3a: nowa procedura, niezależna ("Widok samej lodówki")
+CREATE PROCEDURE GET_FRIDGE_ITEMS
+RETURNS (ID INTEGER, NAME VARCHAR(100), AMOUNT DOUBLE PRECISION, EXPIRATION_DATE DATE)
+AS
+BEGIN
+  FOR SELECT ID, NAME, AMOUNT, EXPIRATION_DATE FROM STOCK_ITEMS
+      WHERE LOCATION = 1  -- Fridge
+      ORDER BY EXPIRATION_DATE
+      INTO :ID, :NAME, :AMOUNT, :EXPIRATION_DATE
+  DO SUSPEND;
+END^
+
+SET TERM ; ^
+```
