@@ -1,5 +1,9 @@
 using System;
 using System.IO;
+using DbMetaTool.Firebird;
+using DbMetaTool.Metadata;
+using DbMetaTool.Metadata.Json;
+using FirebirdSql.Data.FirebirdClient;
 
 namespace DbMetaTool
 {
@@ -94,11 +98,17 @@ namespace DbMetaTool
         /// </summary>
         public static void ExportScripts(string connectionString, string outputDirectory)
         {
-            // TODO:
-            // 1) Połącz się z bazą danych przy użyciu connectionString.
-            // 2) Pobierz metadane domen, tabel (z kolumnami) i procedur.
-            // 3) Wygeneruj pliki .sql / .json / .txt w outputDirectory.
-            throw new NotImplementedException();
+            using var connection = new FbConnection(connectionString);
+            connection.Open();
+
+            var model = new MetadataModel
+            {
+                Domains = DomainReader.ReadAll(connection),
+                Tables = TableReader.ReadAll(connection),
+                Procedures = ProcedureReader.ReadAll(connection)
+            };
+
+            ScriptsDirectoryStore.Save(model, outputDirectory);
         }
 
         /// <summary>
