@@ -37,3 +37,13 @@ w zamontowanym katalogu na hoście.
 
 `gbak` jest wbudowany w obraz — backup/restore robić przez
 `docker exec <container> gbak ...` zamiast instalować narzędzia dodatkowo na Windows.
+
+## Dane logowania (BuildDatabase): SYSDBA/masterkey jako stałe założenie
+
+**Zaszyte na sztywno w `BuildDatabase` (host:port + SYSDBA), bo sygnatura tego nie przewiduje:**
+- host:port — `localhost:3050`
+- user/hasło — `SYSDBA` / `masterkey`
+
+Konsekwencja: `databaseDirectory` to ścieżka **po stronie serwera** (kontenerowa), nie ścieżka
+Windows z przykładu w komentarzu `Program.cs` — do udokumentowania w README, sekcja "jak
+uruchomić", z przykładem: `build-db --db-dir "/var/lib/firebird/data/mydb" --scripts-dir "..."`.
