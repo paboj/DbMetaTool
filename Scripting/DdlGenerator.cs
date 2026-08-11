@@ -37,10 +37,21 @@ public static class DdlGenerator
         return $"CREATE TABLE {table.Name} (\n  " + string.Join(",\n  ", columns) + "\n)";
     }
 
-    public static string GenerateCreateProcedure(ProcedureDefinition procedure)
+    /// <summary>ALTER TABLE ... ADD &lt;col_def&gt; — same column-clause syntax as CREATE TABLE, reuses FormatColumn.</summary>
+    public static string GenerateAddColumn(string tableName, ColumnDefinition column) =>
+        $"ALTER TABLE {tableName} ADD {FormatColumn(column)}";
+
+    public static string GenerateCreateProcedure(ProcedureDefinition procedure) =>
+        BuildProcedureDdl("CREATE PROCEDURE", procedure);
+
+    /// <summary>Safe to run unconditionally, even on an unchanged procedure — Firebird idiom, no DROP, preserves grants.</summary>
+    public static string GenerateCreateOrAlterProcedure(ProcedureDefinition procedure) =>
+        BuildProcedureDdl("CREATE OR ALTER PROCEDURE", procedure);
+
+    private static string BuildProcedureDdl(string header, ProcedureDefinition procedure)
     {
         var sb = new StringBuilder();
-        sb.Append($"CREATE PROCEDURE {procedure.Name}");
+        sb.Append($"{header} {procedure.Name}");
 
         if (procedure.InputParameters.Count > 0)
         {

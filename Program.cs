@@ -141,11 +141,100 @@ namespace DbMetaTool
         /// </summary>
         public static void UpdateDatabase(string connectionString, string scriptsDirectory)
         {
-            // TODO:
-            // 1) Połącz się z bazą danych przy użyciu connectionString.
-            // 2) Wykonaj skrypty z katalogu scriptsDirectory (tylko obsługiwane elementy).
-            // 3) Zadbaj o poprawną kolejność i bezpieczeństwo zmian.
-            throw new NotImplementedException();
+            var sourceModel = ScriptsDirectoryStore.Load(scriptsDirectory);
+
+            using var connection = new FbConnection(connectionString);
+            connection.Open();
+
+            var targetDomains = DomainReader.ReadAll(connection).ToDictionary(d => d.Name, StringComparer.Ordinal);
+            var targetTables = TableReader.ReadAll(connection).ToDictionary(t => t.Name, StringComparer.Ordinal);
+
+            var warnings = new List<string>();
+            UpdateDomains(connection, sourceModel.Domains, targetDomains, warnings);
+            UpdateTables(connection, sourceModel.Tables, targetTables, warnings);
+            UpdateProcedures(connection, sourceModel.Procedures, warnings);
+
+            ReportWarnings(warnings);
         }
+
+        private static void UpdateDomains(FbConnection connection, List<DomainDefinition> sourceDomains,
+            Dictionary<string, DomainDefinition> targetDomains, List<string> warnings)
+        {
+            foreach (var domain in sourceDomains)
+            {
+                if (!targetDomains.TryGetValue(domain.Name, out var existing))
+                    TryExecuteDdl(connection, DdlGenerator.GenerateCreateDomain(domain), "domenę", domain.Name, warnings);
+                else if (!DomainsEqual(domain, existing))
+                    warnings.Add($"Domena {domain.Name}: różni się od wersji w bazie — pominięto (ALTER DOMAIN nieobsługiwany).");
+            }
+        }
+
+        private static void UpdateTables(FbConnection connection, List<TableDefinition> sourceTables,
+            Dictionary<string, TableDefinition> targetTables, List<string> warnings)
+        {
+            foreach (var table in sourceTables)
+            {
+                if (!targetTables.TryGetValue(table.Name, out var existing))
+                {
+                    TryExecuteDdl(connection, DdlGenerator.GenerateCreateTable(table), "tabelę", table.Name, warnings);
+                    continue;
+                }
+
+                var targetColumns = existing.Columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
+                foreach (var column in table.Columns)
+                {
+                    if (!targetColumns.TryGetValue(column.Name, out var existingColumn))
+                        TryExecuteDdl(connection, DdlGenerator.GenerateAddColumn(table.Name, column),
+                            "kolumnę", $"{table.Name}.{column.Name}", warnings);
+                    else if (!ColumnsEqual(column, existingColumn))
+                        warnings.Add($"Kolumna {table.Name}.{column.Name}: różni się od wersji w bazie — pominięto (ALTER COLUMN nieobsługiwany).");
+                }
+            }
+        }
+
+        private static void UpdateProcedures(FbConnection connection, List<ProcedureDefinition> sourceProcedures, List<string> warnings)
+        {
+            foreach (var procedure in sourceProcedures)
+                TryExecuteDdl(connection, DdlGenerator.GenerateCreateOrAlterProcedure(procedure), "procedurę", procedure.Name, warnings);
+        }
+
+        private static void TryExecuteDdl(FbConnection connection, string ddl, string objectType, string objectName, List<string> warnings)
+        {
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using var cmd = new FbCommand(ddl, connection, transaction);
+                cmd.ExecuteNonQuery();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                warnings.Add($"Błąd aktualizacji obiektu (typ: {objectType}, nazwa: {objectName}): {ex.Message}");
+            }
+        }
+
+        private static void ReportWarnings(List<string> warnings)
+        {
+            if (warnings.Count == 0)
+                return;
+
+            Console.WriteLine($"Aktualizacja zakończona z ostrzeżeniami ({warnings.Count}):");
+            foreach (var warning in warnings)
+                Console.WriteLine("  - " + warning);
+        }
+
+        private static bool DomainsEqual(DomainDefinition a, DomainDefinition b) =>
+            string.Equals(a.BaseType, b.BaseType, StringComparison.Ordinal)
+            && a.Length == b.Length && a.Precision == b.Precision && a.Scale == b.Scale
+            && a.Nullable == b.Nullable
+            && string.Equals(a.DefaultValue, b.DefaultValue, StringComparison.Ordinal)
+            && string.Equals(a.CheckExpression, b.CheckExpression, StringComparison.Ordinal);
+
+        private static bool ColumnsEqual(ColumnDefinition a, ColumnDefinition b) =>
+            string.Equals(a.DomainName, b.DomainName, StringComparison.Ordinal)
+            && string.Equals(a.InlineType, b.InlineType, StringComparison.Ordinal)
+            && a.Nullable == b.Nullable
+            && string.Equals(a.DefaultValue, b.DefaultValue, StringComparison.Ordinal);
     }
 }

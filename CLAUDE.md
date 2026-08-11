@@ -30,8 +30,8 @@ pliki/klasy. Nic więcej w `Program.cs` się nie zmienia.
 
 ## Status implementacji
 
-- [ ] `BuildDatabase`
-- [ ] `ExportScripts`
-- [ ] `UpdateDatabase`
+- [x] `BuildDatabase`
+- [x] `ExportScripts`
+- [x] `UpdateDatabase`
 
 (aktualizować w miarę postępu prac)

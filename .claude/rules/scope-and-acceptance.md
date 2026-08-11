@@ -36,6 +36,13 @@ kolumny byłby gorszy niż częściowa, jawnie zaraportowana aktualizacja — pk
 wymaga braku błędów na obiektach, które da się bezpiecznie zaktualizować. Udokumentować
 w README jako ograniczenie.
 
+**Zmiana istniejącej domeny: nie implementować `ALTER DOMAIN`, wykryć różnicę i pominąć
+z ostrzeżeniem w raporcie, kontynuując update pozostałych obiektów.**
+Dlaczego: ta sama logika co przy zmianie kolumny — `ALTER DOMAIN` ma nietrywialne
+ograniczenia na zmianę typu w Firebirdzie, a scenariusz testowy i tak nigdy nie testuje
+zmienionej domeny (pkt 3 zmienia tylko procedurę i dodaje kolumnę). Spójność z już podjętą
+decyzją dla kolumn ważniejsza niż implementowanie nieprzetestowanej ścieżki.
+
 ## Do zweryfikowania (fakt, nie decyzja)
 
 `RDB$PROCEDURE_SOURCE` i `RDB$PROCEDURE_PARAMETERS` (typ/pozycja/IN-OUT/default) —
