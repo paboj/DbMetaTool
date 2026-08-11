@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace DbMetaTool.Metadata.Json;
@@ -13,7 +14,6 @@ namespace DbMetaTool.Metadata.Json;
 /// </code>
 /// One file per object (named after the object) keeps re-exports git-diff friendly — a
 /// changed procedure touches exactly one file instead of reshuffling a shared array file.
-/// Not wired into BuildDatabase/ExportScripts/UpdateDatabase yet.
 /// </summary>
 public static class ScriptsDirectoryStore
 {
@@ -23,7 +23,11 @@ public static class ScriptsDirectoryStore
 
     private static readonly JsonSerializerOptions Options = new()
     {
-        WriteIndented = true
+        WriteIndented = true,
+        // Default encoder escapes '>', '+', etc. as \uXXXX (HTML-safety) — this file format
+        // is never rendered as HTML, and escaping SQL operators makes git diffs of exported
+        // CHECK expressions/procedure source unreadable.
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public static MetadataModel Load(string scriptsDirectory)
