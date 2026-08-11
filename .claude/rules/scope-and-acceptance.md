@@ -38,5 +38,7 @@ w README jako ograniczenie.
 
 ## Do zweryfikowania (fakt, nie decyzja)
 
-Dokładny format pól systemowych FB (`RDB$PROCEDURE_SOURCE`, `RDB$PROCEDURE_PARAMETERS`
-itd.) — zapytania weryfikacyjne w IBExpert patrz `firebird.md`.
+`RDB$PROCEDURE_SOURCE` — zweryfikowane 2026-08-11 testem przez driver, patrz `firebird.md`.
+
+`RDB$PROCEDURE_PARAMETERS` (typ/pozycja/IN-OUT) — nadal do zrobienia, przed pisaniem
+ekstrakcji parametrów w `ExportScripts`; zapytanie weryfikacyjne w `firebird.md`.

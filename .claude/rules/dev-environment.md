@@ -22,16 +22,17 @@ podawać ścieżkę **kontenerową** (np. `/var/lib/firebird/data/moja-baza`), n
 Windows — to nie to samo miejsce na dysku, mimo że plik `.fdb` faktycznie ląduje też
 w zamontowanym katalogu na hoście.
 
-## IBExpert i sterownik .NET — do zweryfikowania
+## IBExpert i sterownik .NET
 
-- IBExpert łączy się przez sieć (`localhost/3050:/var/lib/firebird/data/plik.fdb`) — do
-  sprawdzenia, czy do samego połączenia po TCP wymaga lokalnie `fbclient.dll`, czy
-  wystarczy sam adres serwera (szybki test: spróbować połączyć się bez instalowania FB
-  lokalnie na Windows).
-- `FirebirdSql.Data.FirebirdClient` w trybie remote/client-server powinien być czysto
-  zarządzanym providerem (bez natywnych bibliotek) — natywne biblioteki (`fbembed`) są
-  potrzebne tylko w trybie embedded, którego tu nie używamy. Potwierdzić szybkim testem
-  połączenia z hosta do kontenera, zanim się na tym oprze reszta implementacji.
+- IBExpert wymaga lokalnie `fbclient.dll` do połączenia po TCP (domyślny `gds32.dll` z
+  auth pluginem FB5 nie działa) — potwierdzone w poprzedniej sesji, plik już był w
+  folderze instalacyjnym IBExpert, nic nie trzeba było pobierać.
+- `FirebirdSql.Data.FirebirdClient` (**10.3.4**, dodany do projektu) w trybie
+  remote/client-server jest czysto zarządzany — **potwierdzone testem 2026-08-11**
+  (`scratchpad/FbConnTest/`): connection string bez `fbclient.dll`/`fbembed.dll` (sam
+  `DataSource`/`Port`/`Database`) wystarczył do połączenia z kontenerem `fb-dbmetatool`
+  i odczytu `manual-test.fdb`. Żadna natywna biblioteka nie jest potrzebna w kodzie
+  `DbMetaTool` — to dotyczy tylko IBExpert jako osobnego narzędzia.
 
 ## Backup w scenariuszu testowym (krok 5 z `scope-and-acceptance.md`)
 
