@@ -3,6 +3,7 @@ using System.IO;
 using DbMetaTool.Firebird;
 using DbMetaTool.Metadata;
 using DbMetaTool.Metadata.Json;
+using DbMetaTool.Scripting;
 using FirebirdSql.Data.FirebirdClient;
 
 namespace DbMetaTool
@@ -85,12 +86,36 @@ namespace DbMetaTool
         /// </summary>
         public static void BuildDatabase(string databaseDirectory, string scriptsDirectory)
         {
-            // TODO:
-            // 1) Utwórz pustą bazę danych FB 5.0 w katalogu databaseDirectory.
-            // 2) Wczytaj i wykonaj kolejno skrypty z katalogu scriptsDirectory
-            //    (tylko domeny, tabele, procedury).
-            // 3) Obsłuż błędy i wyświetl raport.
-            throw new NotImplementedException();
+            var connectionString = FirebirdConnectionFactory.BuildConnectionString(databaseDirectory);
+            FbConnection.CreateDatabase(connectionString);
+
+            using var connection = new FbConnection(connectionString);
+            connection.Open();
+
+            var model = ScriptsDirectoryStore.Load(scriptsDirectory);
+
+            foreach (var domain in model.Domains)
+                ExecuteDdl(connection, DdlGenerator.GenerateCreateDomain(domain), "domenę", domain.Name);
+
+            foreach (var table in model.Tables)
+                ExecuteDdl(connection, DdlGenerator.GenerateCreateTable(table), "tabelę", table.Name);
+
+            foreach (var procedure in model.Procedures)
+                ExecuteDdl(connection, DdlGenerator.GenerateCreateProcedure(procedure), "procedurę", procedure.Name);
+        }
+
+        private static void ExecuteDdl(FbConnection connection, string ddl, string objectType, string objectName)
+        {
+            try
+            {
+                using var cmd = new FbCommand(ddl, connection);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Błąd tworzenia obiektu (typ: {objectType}, nazwa: {objectName}): {ex.Message}", ex);
+            }
         }
 
         /// <summary>
