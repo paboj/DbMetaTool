@@ -1,0 +1,14 @@
+# .NET build artifacts
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+
+# Lokalne dane Firebird (wolumen Dockera z .claude/rules/dev-environment.md) — pliki .fdb, nie źródło
+data/
+
+# Pliki Claude Code, które nie powinny trafiać do repo zespołowego
+CLAUDE.local.md
+.claude/settings.local.json
