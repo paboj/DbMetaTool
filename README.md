@@ -11,24 +11,33 @@ Trzy komendy:
 ## Wymagania
 
 - .NET 8 SDK
-- Serwer Firebird 5.0 dostępny pod `localhost:3050`, user `SYSDBA`, hasło `masterkey`
-  (domyślne dane Firebirda, zaszyte na sztywno w `build-db` — patrz sekcja niżej)
+- Serwer Firebird 5.0 pod `localhost:3050`, user `SYSDBA`, hasło `masterkey` — patrz
+  "Baza testowa" niżej.
 
-Najprościej: Firebird 5.0 w Dockerze, obraz oficjalny `firebirdsql/firebird:5.0.4`.
-Uruchomienie kontenera (zgodne z dokumentacją obrazu — port 3050 wystawiony na hosta,
-katalog danych zamontowany, hasło `SYSDBA` ustawione na `masterkey`):
+## Baza testowa — pierwsze uruchomienie
+
+Kontener + baza `manual-test.fdb` z przykładowymi danymi:
 
 ```bash
 docker run -d --name fb-dbmetatool \
   -p 3050:3050 \
   -e FIREBIRD_ROOT_PASSWORD=masterkey \
+  -e FIREBIRD_DATABASE=manual-test.fdb \
+  -e FIREBIRD_DATABASE_DEFAULT_CHARSET=UTF8 \
   -v ./data:/var/lib/firebird/data \
+  -v ./docker/initdb:/docker-entrypoint-initdb.d:ro \
   firebirdsql/firebird:5.0.4
 ```
 
+Skrypty init:
+[`01-domains.sql`](docker/initdb/01-domains.sql),
+[`02-tables.sql`](docker/initdb/02-tables.sql),
+[`03-procedures.sql`](docker/initdb/03-procedures.sql) — uruchamiane tylko przy pustym
+`./data`.
+
 ## Użycie
 
-### export-scripts
+### 1. export-scripts
 
 Eksportuje domeny, tabele (z kolumnami) i procedury (z parametrami i treścią) z istniejącej
 bazy do katalogu jako pliki JSON — jeden plik na obiekt, pod `domains/`, `tables/`,
@@ -36,17 +45,19 @@ bazy do katalogu jako pliki JSON — jeden plik na obiekt, pod `domains/`, `tabl
 
 ```
 dotnet run -- export-scripts \
-  --connection-string "User=SYSDBA;Password=masterkey;DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/mydb.fdb;Dialect=3;Charset=UTF8;" \
-  --output-dir "C:\sciezka\do\wyjscia"
+  --connection-string "User=SYSDBA;Password=masterkey;DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/manual-test.fdb;Dialect=3;Charset=UTF8;" \
+  --output-dir "<sciezka-do-wyjscia>"
 ```
 
-### build-db
+### 2. build-db
 
 Tworzy nową, pustą bazę Firebird pod wskazaną ścieżką i wykonuje w niej skrypty z
 `--scripts-dir`, w kolejności domeny → tabele → procedury.
 
 ```
-dotnet run -- build-db --db-dir "/var/lib/firebird/data/nowabaza.fdb" --scripts-dir "C:\sciezka\do\skryptow"
+dotnet run -- build-db \
+  --db-dir "/var/lib/firebird/data/<nazwa-nowej-bazy>.fdb" \
+  --scripts-dir "<sciezka-do-skryptow>"
 ```
 
 **Uwaga:** `--db-dir` to ścieżka **po stronie serwera Firebirda** (np. wewnątrz kontenera
@@ -56,14 +67,42 @@ dane logowania (`localhost:3050`, `SYSDBA`/`masterkey`) są zaszyte na sztywno w
 bo sygnatura `BuildDatabase(databaseDirectory, scriptsDirectory)` nie przewiduje
 connection stringa.
 
-### update-db
+### 3. Dodanie nowej funkcjonalności do bazy testowej
+
+Żeby przetestować `update-db` na starszej wersji bazy, najpierw robimy backup bieżącego
+stanu, potem wprowadzamy zmiany:
+
+```bash
+docker exec fb-dbmetatool gbak -b -user SYSDBA -pas masterkey \
+  localhost:/var/lib/firebird/data/manual-test.fdb \
+  /var/lib/firebird/data/manual-test-baseline.fbk
+
+docker exec -i fb-dbmetatool isql -user SYSDBA -password masterkey \
+  /var/lib/firebird/data/manual-test.fdb < docker/manual-changes/round-2-changes.sql
+```
+
+[`round-2-changes.sql`](docker/manual-changes/round-2-changes.sql) dodaje kolumnę do
+istniejącej tabeli, modyfikuje istniejącą procedurę (dodatkowy parametr) i dodaje nową
+procedurę.
+
+Uruchomienie `export-scripts` ponownie na `manual-test.fdb` pokaże te zmiany w wyniku.
+Żeby przetestować `update-db`, przywróć backup jako osobną bazę (starszą wersję) i na niej
+uruchom `update-db` z nowym `scripts-dir`:
+
+```bash
+docker exec fb-dbmetatool gbak -c -user SYSDBA -pas masterkey \
+  /var/lib/firebird/data/manual-test-baseline.fbk \
+  localhost:/var/lib/firebird/data/manual-test-baseline.fdb
+```
+
+### 4. update-db
 
 Aktualizuje istniejącą bazę na podstawie skryptów — różnicowo, nie przez drop & recreate.
 
 ```
 dotnet run -- update-db \
-  --connection-string "User=SYSDBA;Password=masterkey;DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/mydb.fdb;Dialect=3;Charset=UTF8;" \
-  --scripts-dir "C:\sciezka\do\skryptow"
+  --connection-string "User=SYSDBA;Password=masterkey;DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/manual-test-baseline.fdb;Dialect=3;Charset=UTF8;" \
+  --scripts-dir "<sciezka-do-skryptow>"
 ```
 
 ## Format scripts-dir
