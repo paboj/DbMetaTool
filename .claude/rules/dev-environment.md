@@ -39,11 +39,17 @@ w zamontowanym katalogu na hoście.
 `gbak` jest wbudowany w obraz — backup/restore robić przez
 `docker exec <container> gbak ...` zamiast instalować narzędzia dodatkowo na Windows.
 
-## Dane logowania (BuildDatabase): SYSDBA/masterkey jako stałe założenie
+## Dane logowania (BuildDatabase): localhost:3050 / SYSDBA/masterkey, stałe w kodzie
 
-**Zaszyte na sztywno w `BuildDatabase` (host:port + SYSDBA), bo sygnatura tego nie przewiduje:**
+**Zaszyte na sztywno jako nazwane stałe w kodzie**
+Sygnatura `BuildDatabase(databaseDirectory, scriptsDirectory)` nie przewiduje connection
+stringa, na ten moment host/port/user/hasło hardcode default gdzieś w kodzie. Plik JSON z
+fallbackiem na te same wartości nie dodaje realnej wartości: scenariusz zakłada jedną
+maszynę dev/test (fallback byłby używany zawsze), a odbiorca kodu ma dostęp do źródeł.
+
 - host:port — `localhost:3050`
-- user/hasło — `SYSDBA` / `masterkey`
+- user/hasło — `SYSDBA` / `masterkey` (znane domyślne dane Firebirda, nie sekret —
+  bezpieczne w publicznym repo)
 
 Konsekwencja: `databaseDirectory` to ścieżka **po stronie serwera** (kontenerowa), nie ścieżka
 Windows z przykładu w komentarzu `Program.cs` — do udokumentowania w README, sekcja "jak
